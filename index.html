@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Peralatan Mesin - Realtime & Interaktif</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+  .navy { color: #001f3f; }
+  .bg-navy { background-color: #001f3f; }
+  .hover-bg-navy:hover { background-color: #003366; }
+</style>
+</head>
+<body class="bg-gray-50 p-6">
+
+<h2 class="text-center text-3xl font-bold mb-6 navy">Daftar Peralatan Mesin</h2>
+
+<div class="mb-4 flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0">
+  <div>
+    <button id="downloadExcel" class="bg-navy hover-bg-navy text-white px-4 py-2 rounded shadow-md mr-2">Download Excel</button>
+    <button id="downloadPdf" class="bg-navy hover-bg-navy text-white px-4 py-2 rounded shadow-md">Download PDF</button>
+  </div>
+  <div>
+    <input type="text" id="searchInput" placeholder="Cari..." class="border rounded px-4 py-2 w-full md:w-80">
+  </div>
+</div>
+
+<div class="overflow-x-auto bg-white rounded shadow-md">
+  <table id="dataTable" class="min-w-full table-auto border border-gray-300">
+    <thead>
+      <tr class="bg-navy text-white">
+        <th class="border px-4 py-2">Urut</th>
+        <th class="border px-4 py-2">Pengguna Barang</th>
+        <th class="border px-4 py-2">Kode Barang</th>
+        <th class="border px-4 py-2">Nama Barang</th>
+        <th class="border px-4 py-2">Konfirmasi Keberadaan</th>
+        <th class="border px-4 py-2">Kondisi</th>
+        <th class="border px-4 py-2">Label BMD</th>
+        <th class="border px-4 py-2">Penggunaan</th>
+        <th class="border px-4 py-2">Nama Pengguna</th>
+        <th class="border px-4 py-2">Status Pegawai Pengguna</th>
+        <th class="border px-4 py-2">Keterangan Tambahan</th>
+        <th class="border px-4 py-2">NIBAR</th>
+        <th class="border px-4 py-2">Merek/Tipe</th>
+        <th class="border px-4 py-2">Nomor Polisi</th>
+        <th class="border px-4 py-2">Nomor Rangka</th>
+        <th class="border px-4 py-2">Nomor BPKB</th>
+        <th class="border px-4 py-2">Nilai Perolehan</th>
+        <th class="border px-4 py-2">Cara Perolehan</th>
+        <th class="border px-4 py-2">Perolehan</th>
+        <th class="border px-4 py-2">Status Penggunaan</th>
+      </tr>
+    </thead>
+    <tbody class="text-gray-700">
+      <tr><td colspan="20" class="text-center py-8">Loading data...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="pagination" class="flex justify-center mt-6 space-x-2"></div>
+
+<script>
+const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTzDGHCw-E29ViqHSyUB2TX9bHqoXDtOB8bgo_A4eyzRlj8uRF7lVT7wfPRYc-kah8MWXlm-u3Am5Tt/pub?gid=1917777904&single=true&output=csv';
+let currentData = [];
+let filteredData = [];
+let currentPage = 1;
+const itemsPerPage = 10;
+
+function loadData() {
+  fetch(csvUrl)
+    .then(res => res.text())
+    .then(csvText => {
+      const results = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+      // Hapus kolom K1–K8
+      currentData = results.data.map(row => ({
+        "Urut": row["Urut"] || '',
+        "Pengguna Barang": row["Pengguna Barang"] || '',
+        "Kode Barang": row["Kode Barang"] || '',
+        "Nama Barang": row["Nama Barang"] || '',
+        "Konfirmasi Keberadaan": row["Konfirmasi Keberadaan"] || '',
+        "Kondisi": row["Kondisi"] || '',
+        "Label BMD": row["Label BMD\n(selain Kendaraan)"] || '',
+        "Penggunaan": row["Penggunaan"] || '',
+        "Nama Pengguna": row["Nama Pengguna\n(Jika Penggunaan : Digunakan Pegawai)"] || '',
+        "Status Pegawai Pengguna": row["Status Pegawai Pengguna\n(Jika Penggunaan : Digunakan Pegawai)"] || '',
+        "Keterangan Tambahan": row["Keterangan Tambahan"] || '',
+        "NIBAR": row["NIBAR"] || '',
+        "Merek/Tipe": row["Merek/tipe"] || '',
+        "Nomor Polisi": row["Nomor Polisi"] || '',
+        "Nomor Rangka": row["Nomor Rangka"] || '',
+        "Nomor BPKB": row["Nomor BPKB"] || '',
+        "Nilai Perolehan": row["Nilai Perolehan"] || '',
+        "Cara Perolehan": row["Cara Perolehan"] || '',
+        "Perolehan": row["Perolehan"] || '',
+        "Status Penggunaan": row["Status Penggunaan"] || ''
+      }));
+      filteredData = currentData;
+      currentPage = 1;
+      renderTable();
+    });
+}
+
+function renderTable() {
+  const tbody = document.querySelector('#dataTable tbody');
+  tbody.innerHTML = '';
+  if(filteredData.length === 0){
+    tbody.innerHTML = '<tr><td colspan="20" class="text-center py-8">Tidak ada data</td></tr>';
+    return;
+  }
+
+  const startIdx = (currentPage -1)*itemsPerPage;
+  const pageData = filteredData.slice(startIdx, startIdx+itemsPerPage);
+
+  pageData.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = Object.values(row).map(val=>`<td class="border px-4 py-2">${val||''}</td>`).join('');
+    tbody.appendChild(tr);
+  });
+
+  renderPagination();
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(filteredData.length/itemsPerPage);
+  const paginationDiv = document.getElementById('pagination');
+  paginationDiv.innerHTML = '';
+
+  if(totalPages <=1) return;
+
+  const prevBtn = `<button class="px-3 py-1 bg-navy text-white rounded ${currentPage===1?'opacity-50':''}" ${currentPage===1?'disabled':''} onclick="goToPage(${currentPage-1})">Prev</button>`;
+  const nextBtn = `<button class="px-3 py-1 bg-navy text-white rounded ${currentPage===totalPages?'opacity-50':''}" ${currentPage===totalPages?'disabled':''} onclick="goToPage(${currentPage+1})">Next</button>`;
+  paginationDiv.innerHTML += prevBtn;
+
+  for(let i=1;i<=totalPages;i++){
+    paginationDiv.innerHTML += `<button class="px-3 py-1 ${i===currentPage?'bg-blue-700 text-white':'bg-gray-200'} rounded" onclick="goToPage(${i})">${i}</button>`;
+  }
+
+  paginationDiv.innerHTML += nextBtn;
+}
+
+function goToPage(page){ currentPage=page; renderTable(); }
+
+document.getElementById('searchInput').addEventListener('input', function(){
+  const query = this.value.toLowerCase();
+  filteredData = currentData.filter(row => Object.values(row).some(v=>(v||'').toLowerCase().includes(query)));
+  currentPage=1; renderTable();
+});
+
+function downloadExcel(){
+  if(!currentData.length){ alert('Data belum dimuat.'); return;}
+  const worksheet = XLSX.utils.json_to_sheet(currentData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'PeralatanMesin');
+  XLSX.writeFile(workbook, 'Peralatan_Mesin.xlsx');
+}
+
+function downloadPdf(){
+  if(!currentData.length){ alert('Data belum dimuat.'); return;}
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('l', 'pt', 'a4');
+  const columns = Object.keys(currentData[0]);
+  const pdfData = currentData.map(row => columns.map(k=>row[k]||''));
+  doc.autoTable({ head:[columns], body:pdfData, startY:20, styles:{fontSize:8}, headStyles:{fillColor:[0,31,63]}});
+  doc.save('Peralatan_Mesin.pdf');
+}
+
+document.getElementById('downloadExcel').addEventListener('click', downloadExcel);
+document.getElementById('downloadPdf').addEventListener('click', downloadPdf);
+
+loadData();
+setInterval(loadData,30000);
+</script>
+
+</body>
+</html>
